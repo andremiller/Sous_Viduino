@@ -46,7 +46,7 @@
 #define RELAY_ON  HIGH
 
 //#define KEYPAD_V11  // There are two different versions of the DFRobot keypad
-                    // If the buttons don't work, try commenting / uncommenting this
+// If the buttons don't work, try commenting / uncommenting this
 
 // ************************************************
 // PID Variables and constants
@@ -152,7 +152,7 @@ void setup()
   // Initialize Relay Control:
   pinMode(RelayPin, OUTPUT);
   pinMode(RelayPinGnd, OUTPUT);
-  digitalWrite(RelayPin, RELAY_OFF); relayState=false; // make sure it is off to start
+  digitalWrite(RelayPin, RELAY_OFF); relayState = false; // make sure it is off to start
   digitalWrite(RelayPinGnd, LOW);
 
   // Set up Ground & Power for the sensor from GPIO pins
@@ -214,7 +214,7 @@ SIGNAL(TIMER2_OVF_vect)
 {
   if (opState == OFF)
   {
-    digitalWrite(RelayPin, RELAY_OFF); relayState=false; // make sure relay is off
+    digitalWrite(RelayPin, RELAY_OFF); relayState = false; // make sure relay is off
   }
   else
   {
@@ -263,7 +263,7 @@ void loop()
 void Off()
 {
   myPID.SetMode(MANUAL);
-  digitalWrite(RelayPin, RELAY_OFF); relayState=false; // make sure it is off
+  digitalWrite(RelayPin, RELAY_OFF); relayState = false; // make sure it is off
   lcd.print(F("    OFF      "));
   lcd.setCursor(0, 1);
   lcd.print(F("   Sous Vide!"));
@@ -536,10 +536,17 @@ void Run()
   {
 
     buttons = ReadButtons();
-    if ((buttons & BUTTON_UP)
-        && (abs(Input - Setpoint) < 0.5))  // Should be at steady-state
-    {
-      StartAutoTune();
+    if (buttons & BUTTON_UP) {
+      if (abs(Input - Setpoint) < 0.5)  // Should be at steady-state
+      {
+        StartAutoTune();
+      }
+      else
+      {
+        lcd.setCursor(0, 1);
+        lcd.write("Temp not stable ");
+        delay(3000);
+      }
     }
     else if (buttons & BUTTON_RIGHT)
     {
@@ -638,11 +645,11 @@ void DriveOutput()
   }
   if ((onTime > 100) && (onTime > (now - windowStartTime)))
   {
-    digitalWrite(RelayPin, RELAY_ON); relayState=true;
+    digitalWrite(RelayPin, RELAY_ON); relayState = true;
   }
   else
   {
-    digitalWrite(RelayPin, RELAY_OFF); relayState=false;
+    digitalWrite(RelayPin, RELAY_OFF); relayState = false;
   }
 }
 
