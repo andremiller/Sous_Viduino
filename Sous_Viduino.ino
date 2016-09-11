@@ -127,6 +127,7 @@ long lastLogTime = 0;
 // ************************************************
 enum operatingState { OFF = 0, SETP, RUN, TUNE_P, TUNE_I, TUNE_D, AUTO};
 operatingState opState = RUN;
+bool relayState = false;
 
 // ************************************************
 // Sensor Variables and constants
@@ -151,7 +152,7 @@ void setup()
   // Initialize Relay Control:
   pinMode(RelayPin, OUTPUT);
   pinMode(RelayPinGnd, OUTPUT);
-  digitalWrite(RelayPin, RELAY_OFF);  // make sure it is off to start
+  digitalWrite(RelayPin, RELAY_OFF); relayState=false; // make sure it is off to start
   digitalWrite(RelayPinGnd, LOW);
 
   // Set up Ground & Power for the sensor from GPIO pins
@@ -213,7 +214,7 @@ SIGNAL(TIMER2_OVF_vect)
 {
   if (opState == OFF)
   {
-    digitalWrite(RelayPin, RELAY_OFF);  // make sure relay is off
+    digitalWrite(RelayPin, RELAY_OFF); relayState=false; // make sure relay is off
   }
   else
   {
@@ -262,7 +263,7 @@ void loop()
 void Off()
 {
   myPID.SetMode(MANUAL);
-  digitalWrite(RelayPin, RELAY_OFF);  // make sure it is off
+  digitalWrite(RelayPin, RELAY_OFF); relayState=false; // make sure it is off
   lcd.print(F("    OFF      "));
   lcd.setCursor(0, 1);
   lcd.print(F("   Sous Vide!"));
@@ -556,7 +557,7 @@ void Run()
     lcd.setCursor(0, 1);
     lcd.print(Input);
     lcd.write(1);
-    lcd.print(F("C : "));
+    lcd.print(F("C   "));
 
     float pct = map(Output, 0, WindowSize, 0, 1000);
     lcd.setCursor(10, 1);
@@ -566,14 +567,21 @@ void Run()
     //lcd.print(Output);
     lcd.print("%");
 
-    lcd.setCursor(15, 0);
+    lcd.setCursor(14, 0);
     if (tuning)
     {
       lcd.print("T");
     }
     else
     {
-      lcd.print(" ");
+      lcd.print(".");
+    }
+    if (relayState) {
+      lcd.print("#");
+    }
+    else
+    {
+      lcd.print(".");
     }
 
     // periodically log to serial port in csv format
@@ -630,11 +638,11 @@ void DriveOutput()
   }
   if ((onTime > 100) && (onTime > (now - windowStartTime)))
   {
-    digitalWrite(RelayPin, RELAY_ON);
+    digitalWrite(RelayPin, RELAY_ON); relayState=true;
   }
   else
   {
-    digitalWrite(RelayPin, RELAY_OFF);
+    digitalWrite(RelayPin, RELAY_OFF); relayState=false;
   }
 }
 
