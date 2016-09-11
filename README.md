@@ -10,6 +10,8 @@ This project was designed as an alternative to the [Adafruit Sous-Vide controlle
 * The UP button triggers autotune
 * Splash screen delay reduced
 * On startup, waits until it can read the temperature sensor
+* Configurable Active Low or Active High Relay output
+* Configurable DFRobot Keypad version (V1.0 or V1.1)
 
 
 Instructions

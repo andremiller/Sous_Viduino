@@ -41,6 +41,13 @@
 #define ONE_WIRE_PWR 3
 #define ONE_WIRE_GND 11
 
+// Swap these around if your relay is active low
+#define RELAY_OFF LOW
+#define RELAY_ON  HIGH
+
+//#define KEYPAD_V11  // There are two different versions of the DFRobot keypad
+                    // If the buttons don't work, try commenting / uncommenting this
+
 // ************************************************
 // PID Variables and constants
 // ************************************************
@@ -144,7 +151,7 @@ void setup()
   // Initialize Relay Control:
   pinMode(RelayPin, OUTPUT);
   pinMode(RelayPinGnd, OUTPUT);
-  digitalWrite(RelayPin, LOW);  // make sure it is off to start
+  digitalWrite(RelayPin, RELAY_OFF);  // make sure it is off to start
   digitalWrite(RelayPinGnd, LOW);
 
   // Set up Ground & Power for the sensor from GPIO pins
@@ -206,7 +213,7 @@ SIGNAL(TIMER2_OVF_vect)
 {
   if (opState == OFF)
   {
-    digitalWrite(RelayPin, LOW);  // make sure relay is off
+    digitalWrite(RelayPin, RELAY_OFF);  // make sure relay is off
   }
   else
   {
@@ -255,7 +262,7 @@ void loop()
 void Off()
 {
   myPID.SetMode(MANUAL);
-  digitalWrite(RelayPin, LOW);  // make sure it is off
+  digitalWrite(RelayPin, RELAY_OFF);  // make sure it is off
   lcd.print(F("    OFF      "));
   lcd.setCursor(0, 1);
   lcd.print(F("   Sous Vide!"));
@@ -623,11 +630,11 @@ void DriveOutput()
   }
   if ((onTime > 100) && (onTime > (now - windowStartTime)))
   {
-    digitalWrite(RelayPin, HIGH);
+    digitalWrite(RelayPin, RELAY_ON);
   }
   else
   {
-    digitalWrite(RelayPin, LOW);
+    digitalWrite(RelayPin, RELAY_OFF);
   }
 }
 
@@ -683,21 +690,20 @@ uint8_t ReadButtons()
   lastInput = millis();
 
   // For V1.1 use this threshold
-  /*
-    if (adc_key_in < 50)   return BUTTON_RIGHT;
-    if (adc_key_in < 250)  return BUTTON_UP;
-    if (adc_key_in < 450)  return BUTTON_DOWN;
-    if (adc_key_in < 650)  return BUTTON_LEFT;
-    if (adc_key_in < 850)  return BUTTON_SELECT;
-  */
-
+#ifdef KEYPAD_V11
+  if (adc_key_in < 50)   return BUTTON_RIGHT;
+  if (adc_key_in < 250)  return BUTTON_UP;
+  if (adc_key_in < 450)  return BUTTON_DOWN;
+  if (adc_key_in < 650)  return BUTTON_LEFT;
+  if (adc_key_in < 850)  return BUTTON_SELECT;
+#else
   // For V1.0 use this threshold
-
   if (adc_key_in < 50)   return BUTTON_RIGHT;
   if (adc_key_in < 195)  return BUTTON_UP;
   if (adc_key_in < 380)  return BUTTON_DOWN;
   if (adc_key_in < 555)  return BUTTON_LEFT;
   if (adc_key_in < 790)  return BUTTON_SELECT;
+#endif
 
   return 0;  // when all others fail, return this...
 }
