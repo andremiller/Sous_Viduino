@@ -13,6 +13,7 @@ This project was designed as an alternative to the [Adafruit Sous-Vide controlle
 * Configurable Active Low or Active High Relay output
 * Configurable DFRobot Keypad version (V1.0 or V1.1)
 * Relay state is shown in top right corner of LCD while running
+* Error message when it can't autotune
 
 
 Instructions
