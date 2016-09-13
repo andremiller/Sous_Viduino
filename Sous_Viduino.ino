@@ -87,6 +87,8 @@ double aTuneNoise = 1;
 unsigned int aTuneLookBack = 20;
 
 boolean tuning = false;
+boolean preheat = false;
+double PreHeatRange = 3.0; // If current temp is more than 3 degrees below setpoint, enable preheat mode
 
 PID_ATune aTune(&Input, &Output);
 
@@ -322,13 +324,13 @@ void Tune_Sp()
     }
     if (buttons & BUTTON_UP)
     {
-      Setpoint = round(Setpoint*100)/100.0; // Round to one digit precision
+      Setpoint = round(Setpoint * 100) / 100.0; // Round to one digit precision
       Setpoint += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
-      Setpoint = round(Setpoint*100)/100.0; // Round to one digit precision
+      Setpoint = round(Setpoint * 100) / 100.0; // Round to one digit precision
       Setpoint -= increment;
       delay(200);
     }
@@ -389,13 +391,13 @@ void TuneP()
     }
     if (buttons & BUTTON_UP)
     {
-      Kp = round(Kp*100)/100.0; // Round to two digits precision
+      Kp = round(Kp * 100) / 100.0; // Round to two digits precision
       Kp += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
-      Kp = round(Kp*100)/100.0; // Round to two digits precision
+      Kp = round(Kp * 100) / 100.0; // Round to two digits precision
       Kp -= increment;
       delay(200);
     }
@@ -456,13 +458,13 @@ void TuneI()
     }
     if (buttons & BUTTON_UP)
     {
-      Ki = round(Ki*100)/100.0; // Round to two digits precision
+      Ki = round(Ki * 100) / 100.0; // Round to two digits precision
       Ki += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
-      Ki = round(Ki*100)/100.0; // Round to two digits precision
+      Ki = round(Ki * 100) / 100.0; // Round to two digits precision
       Ki -= increment;
       delay(200);
     }
@@ -522,13 +524,13 @@ void TuneD()
     }
     if (buttons & BUTTON_UP)
     {
-      Kd = round(Kd*100)/100.0; // Round to two digits precision
+      Kd = round(Kd * 100) / 100.0; // Round to two digits precision
       Kd += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
-      Kd = round(Kd*100)/100.0; // Round to two digits precision
+      Kd = round(Kd * 100) / 100.0; // Round to two digits precision
       Kd -= increment;
       delay(200);
     }
@@ -609,7 +611,11 @@ void Run()
     lcd.print("%");
 
     lcd.setCursor(14, 0);
-    if (tuning)
+    if (preheat)
+    {
+      lcd.print("P");
+    }
+    else if (tuning)
     {
       lcd.print("T");
     }
@@ -658,7 +664,16 @@ void DoControl()
   }
   else // Execute control algorithm
   {
-    myPID.Compute();
+    if (Setpoint - Input > PreHeatRange)
+    {
+      preheat = true; // suppress control until within range
+      Output = WindowSize;
+    }
+    else
+    {
+      preheat = false;
+      myPID.Compute();
+    }
   }
 
   // Time Proportional relay state is updated regularly via timer interrupt.
