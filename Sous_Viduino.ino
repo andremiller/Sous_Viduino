@@ -291,7 +291,7 @@ void Off()
 // ************************************************
 void Tune_Sp()
 {
-  lcd.print(F("Set Temperature:"));
+  lcd.print(F("Set Temp:"));
   uint8_t buttons = 0;
   float increment = 0.1;
   while (true)
@@ -299,12 +299,15 @@ void Tune_Sp()
     buttons = ReadButtons();
     if (buttons & BUTTON_SELECT)
     {
-      if (increment == 0.1) {
+      if (increment == 0.01) {
+        increment = 0.1;
+      } else if (increment == 0.1) {
         increment = 1.0;
       } else if (increment == 1.0) {
-        increment = 0.1;
+        increment = 10.0;
+      } else if (increment == 10.0) {
+        increment = 0.01;
       }
-      Serial.println(increment);
       delay(200);
     }
     if (buttons & BUTTON_LEFT)
@@ -319,11 +322,13 @@ void Tune_Sp()
     }
     if (buttons & BUTTON_UP)
     {
+      Setpoint = round(Setpoint*100)/100.0; // Round to one digit precision
       Setpoint += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
+      Setpoint = round(Setpoint*100)/100.0; // Round to one digit precision
       Setpoint -= increment;
       delay(200);
     }
@@ -333,6 +338,10 @@ void Tune_Sp()
       opState = RUN;
       return;
     }
+    lcd.setCursor(10, 0);
+    if (increment < 10) lcd.print(" ");
+    lcd.print(increment);
+    lcd.print(" ");
     lcd.setCursor(0, 1);
     lcd.print(Setpoint);
     lcd.print(" ");
@@ -357,12 +366,15 @@ void TuneP()
     buttons = ReadButtons();
     if (buttons & BUTTON_SELECT)
     {
-      if (increment == 1.0) {
+      if (increment == 0.01) {
+        increment = 0.1;
+      } else if (increment == 0.1) {
+        increment = 1.0;
+      } else if (increment == 1.0) {
         increment = 10.0;
       } else if (increment == 10.0) {
-        increment = 1.0;
+        increment = 0.01;
       }
-      Serial.println(increment);
       delay(200);
     }
     if (buttons & BUTTON_LEFT)
@@ -377,11 +389,13 @@ void TuneP()
     }
     if (buttons & BUTTON_UP)
     {
+      Kp = round(Kp*100)/100.0; // Round to two digits precision
       Kp += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
+      Kp = round(Kp*100)/100.0; // Round to two digits precision
       Kp -= increment;
       delay(200);
     }
@@ -390,6 +404,10 @@ void TuneP()
       opState = RUN;
       return;
     }
+    lcd.setCursor(10, 0);
+    if (increment < 10) lcd.print(" ");
+    lcd.print(increment);
+    lcd.print(" ");
     lcd.setCursor(0, 1);
     lcd.print(Kp);
     lcd.print(" ");
@@ -420,6 +438,8 @@ void TuneI()
       } else if (increment == 0.1) {
         increment = 1.0;
       } else if (increment == 1.0) {
+        increment = 10.0;
+      } else if (increment == 10.0) {
         increment = 0.01;
       }
       delay(200);
@@ -436,11 +456,13 @@ void TuneI()
     }
     if (buttons & BUTTON_UP)
     {
+      Ki = round(Ki*100)/100.0; // Round to two digits precision
       Ki += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
+      Ki = round(Ki*100)/100.0; // Round to two digits precision
       Ki -= increment;
       delay(200);
     }
@@ -449,6 +471,10 @@ void TuneI()
       opState = RUN;
       return;
     }
+    lcd.setCursor(10, 0);
+    if (increment < 10) lcd.print(" ");
+    lcd.print(increment);
+    lcd.print(" ");
     lcd.setCursor(0, 1);
     lcd.print(Ki);
     lcd.print(" ");
@@ -478,6 +504,8 @@ void TuneD()
       } else if (increment == 0.1) {
         increment = 1.0;
       } else if (increment == 1.0) {
+        increment = 10.0;
+      } else if (increment == 10.0) {
         increment = 0.01;
       }
       delay(200);
@@ -494,11 +522,13 @@ void TuneD()
     }
     if (buttons & BUTTON_UP)
     {
+      Kd = round(Kd*100)/100.0; // Round to two digits precision
       Kd += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
+      Kd = round(Kd*100)/100.0; // Round to two digits precision
       Kd -= increment;
       delay(200);
     }
@@ -507,6 +537,10 @@ void TuneD()
       opState = RUN;
       return;
     }
+    lcd.setCursor(10, 0);
+    if (increment < 10) lcd.print(" ");
+    lcd.print(increment);
+    lcd.print(" ");
     lcd.setCursor(0, 1);
     lcd.print(Kd);
     lcd.print(" ");
