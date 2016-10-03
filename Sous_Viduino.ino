@@ -53,9 +53,15 @@
 // ************************************************
 
 //Define Variables we'll be connecting to
-double Setpoint;
+double Setpoint; // The current setpoint value
+double Setpoint1; // Stored Setpoint 1
+double Setpoint2; // Stored Setpoint 2
+double CookTime; // Cooking time
 double Input;
 double Output;
+
+unsigned long cookTimeRemaining = 0; // The cooking time remaining
+unsigned long previousMillis = 0;
 
 volatile long onTime = 0;
 
@@ -65,10 +71,12 @@ double Ki;
 double Kd;
 
 // EEPROM addresses for persisted data
-const int SpAddress = 0;
+const int Sp1Address = 0;
 const int KpAddress = 8;
 const int KiAddress = 16;
 const int KdAddress = 24;
+const int Sp2Address = 32;
+const int CookTimeAddress = 40;
 
 //Specify the links and initial tuning parameters
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
@@ -121,13 +129,13 @@ byte degree[8] = // define the degree symbol
 #define BUTTON_LEFT 8
 #define BUTTON_SELECT 16
 
-const int logInterval = 10000; // log every 10 seconds
+const int logInterval = 1000; // log every 1 seconds
 long lastLogTime = 0;
 
 // ************************************************
 // States for state machine
 // ************************************************
-enum operatingState { OFF = 0, SETP, RUN, TUNE_P, TUNE_I, TUNE_D, AUTO};
+enum operatingState { OFF = 0, SETP1, SETP2, SETCOOKTIME, RUN, TUNE_P, TUNE_I, TUNE_D, AUTO};
 operatingState opState = RUN;
 bool relayState = false;
 
@@ -187,6 +195,7 @@ void setup()
 
   // Initialize the PID and related variables
   LoadParameters();
+  Setpoint = Setpoint1; // Start with first Setpoint value
   myPID.SetTunings(Kp, Ki, Kd);
 
   myPID.SetSampleTime(1000);
@@ -241,8 +250,14 @@ void loop()
     case OFF:
       Off();
       break;
-    case SETP:
-      Tune_Sp();
+    case SETP1:
+      Tune_Sp1();
+      break;
+    case SETP2:
+      Tune_Sp2();
+      break;
+    case SETCOOKTIME:
+      Set_CookTime();
       break;
     case RUN:
       Run();
@@ -287,13 +302,13 @@ void Off()
 // ************************************************
 // Setpoint Entry State
 // UP/DOWN to change setpoint
-// RIGHT for tuning parameters
+// RIGHT for Setpoint 2
 // LEFT for OFF
 // SELECT for 10x tuning
 // ************************************************
-void Tune_Sp()
+void Tune_Sp1()
 {
-  lcd.print(F("Set Temp:"));
+  lcd.print(F("Set Temp 1:"));
   uint8_t buttons = 0;
   float increment = 0.1;
   while (true)
@@ -319,19 +334,19 @@ void Tune_Sp()
     }
     if (buttons & BUTTON_RIGHT)
     {
-      opState = TUNE_P;
+      opState = SETCOOKTIME;
       return;
     }
     if (buttons & BUTTON_UP)
     {
-      Setpoint = round(Setpoint * 100) / 100.0; // Round to one digit precision
-      Setpoint += increment;
+      Setpoint1 = round(Setpoint1 * 100) / 100.0; // Round to one digit precision
+      Setpoint1 += increment;
       delay(200);
     }
     if (buttons & BUTTON_DOWN)
     {
-      Setpoint = round(Setpoint * 100) / 100.0; // Round to one digit precision
-      Setpoint -= increment;
+      Setpoint1 = round(Setpoint1 * 100) / 100.0; // Round to one digit precision
+      Setpoint1 -= increment;
       delay(200);
     }
 
@@ -345,7 +360,147 @@ void Tune_Sp()
     lcd.print(increment);
     lcd.print(" ");
     lcd.setCursor(0, 1);
-    lcd.print(Setpoint);
+    lcd.print(Setpoint1);
+    lcd.print(" ");
+    DoControl();
+  }
+}
+
+// ************************************************
+// Cooking Time Entry State
+// UP/DOWN to change setpoint
+// RIGHT for tuning parameters
+// LEFT for Setpoint
+// SELECT for increment
+// ************************************************
+void Set_CookTime()
+{
+  lcd.print(F("Set Time:"));
+  uint8_t buttons = 0;
+  float increment = 60000;
+  while (true)
+  {
+    buttons = ReadButtons();
+    if (buttons & BUTTON_SELECT)
+    {
+      if (increment == 60000) {
+        increment = 3600000;
+      } else if (increment == 3600000) {
+        increment = 60000;
+      }
+      delay(200);
+    }
+    if (buttons & BUTTON_LEFT)
+    {
+      opState = SETP1;
+      return;
+    }
+    if (buttons & BUTTON_RIGHT)
+    {
+      opState = SETP2;
+      return;
+    }
+    if (buttons & BUTTON_UP)
+    {
+      CookTime += increment;
+      delay(200);
+    }
+    if (buttons & BUTTON_DOWN)
+    {
+      CookTime -= increment;
+      delay(200);
+    }
+
+    if ((millis() - lastInput) > 3000)  // return to RUN after 3 seconds idle
+    {
+      opState = RUN;
+      return;
+    }
+    CookTime = constrain(CookTime, 0, 3596400000); // 999 hours
+    lcd.setCursor(10, 0);
+    if (increment == 60000)   lcd.print("Minute");
+    if (increment == 3600000) lcd.print("Hour  ");
+    lcd.setCursor(0, 1);
+
+    int hours = (unsigned long)CookTime / 3600000;
+    int minutes = ((unsigned long)CookTime % 3600000) / 60000;
+    // Round to minutes
+    CookTime = hours * 3600000 + minutes * 60000;
+    if (hours < 10) lcd.print("0");
+    if (hours < 100) lcd.print("0");
+    lcd.print(hours);
+    lcd.print(":");
+    if (minutes < 10) lcd.print("0");
+    lcd.print(minutes);
+
+
+    lcd.print(" ");
+    DoControl();
+  }
+}
+
+// ************************************************
+// Setpoint 2 Entry State
+// UP/DOWN to change setpoint
+// RIGHT for tuning parameters
+// LEFT for OFF
+// SELECT for 10x tuning
+// ************************************************
+void Tune_Sp2()
+{
+  lcd.print(F("Set Temp 2:"));
+  uint8_t buttons = 0;
+  float increment = 0.1;
+  while (true)
+  {
+    buttons = ReadButtons();
+    if (buttons & BUTTON_SELECT)
+    {
+      if (increment == 0.01) {
+        increment = 0.1;
+      } else if (increment == 0.1) {
+        increment = 1.0;
+      } else if (increment == 1.0) {
+        increment = 10.0;
+      } else if (increment == 10.0) {
+        increment = 0.01;
+      }
+      delay(200);
+    }
+    if (buttons & BUTTON_LEFT)
+    {
+      opState = SETCOOKTIME;
+      return;
+    }
+    if (buttons & BUTTON_RIGHT)
+    {
+      opState = TUNE_P;
+      return;
+    }
+    if (buttons & BUTTON_UP)
+    {
+      Setpoint2 = round(Setpoint2 * 100) / 100.0; // Round to one digit precision
+      Setpoint2 += increment;
+      delay(200);
+    }
+    if (buttons & BUTTON_DOWN)
+    {
+      Setpoint2 = round(Setpoint2 * 100) / 100.0; // Round to one digit precision
+      Setpoint2 -= increment;
+      delay(200);
+    }
+
+    if ((millis() - lastInput) > 3000)  // return to RUN after 3 seconds idle
+    {
+      opState = RUN;
+      return;
+    }
+    lcd.setCursor(10, 0);
+    if (increment < 10) lcd.print(" ");
+    lcd.print(increment);
+    lcd.print(" ");
+    lcd.setCursor(0, 1);
+    lcd.print(Setpoint2);
     lcd.print(" ");
     DoControl();
   }
@@ -381,7 +536,7 @@ void TuneP()
     }
     if (buttons & BUTTON_LEFT)
     {
-      opState = SETP;
+      opState = SETP2;
       return;
     }
     if (buttons & BUTTON_RIGHT)
@@ -487,7 +642,7 @@ void TuneI()
 // ************************************************
 // Derivative Tuning State
 // UP/DOWN to change Kd
-// RIGHT for setpoint
+// RIGHT for RUN
 // LEFT for Ki
 // SELECT for 10x tuning
 // ************************************************
@@ -558,11 +713,6 @@ void TuneD()
 // ************************************************
 void Run()
 {
-  // set up the LCD's number of rows and columns:
-  lcd.print(F("Sp: "));
-  lcd.print(Setpoint);
-  lcd.write(1);
-  lcd.print(F("C : "));
 
   SaveParameters();
   myPID.SetTunings(Kp, Ki, Kd);
@@ -570,6 +720,22 @@ void Run()
   uint8_t buttons = 0;
   while (true)
   {
+
+    lcd.setCursor(0, 0);
+    lcd.print(F("Sp"));
+    // Set Setpoint based on time duration
+    if (cookTimeRemaining > 0) {
+      lcd.print(F("1"));
+      Setpoint = Setpoint1;
+    } else {
+      lcd.print(F("2"));
+      Setpoint = Setpoint2;
+    }
+
+    lcd.print(F(":"));
+    lcd.print(Setpoint);
+    lcd.write(1);
+    lcd.print(F("C : "));
 
     buttons = ReadButtons();
     if (buttons & BUTTON_UP) {
@@ -586,7 +752,7 @@ void Run()
     }
     else if (buttons & BUTTON_RIGHT)
     {
-      opState = SETP;
+      opState = SETP1;
       return;
     }
     else if (buttons & BUTTON_LEFT)
@@ -594,21 +760,26 @@ void Run()
       opState = OFF;
       return;
     }
+    else if (buttons & BUTTON_SELECT)
+    {
+      // Start cooking timer
+      cookTimeRemaining = CookTime;
+    }
 
     DoControl();
 
     lcd.setCursor(0, 1);
     lcd.print(Input);
-    lcd.write(1);
-    lcd.print(F("C   "));
+    //lcd.write(1);
+    //lcd.print(F("C   "));
 
-    float pct = map(Output, 0, WindowSize, 0, 1000);
-    lcd.setCursor(10, 1);
-    lcd.print(F("      "));
-    lcd.setCursor(10, 1);
-    lcd.print(pct / 10);
+    int pct = map(Output, 0, WindowSize, 0, 99);
+    lcd.setCursor(14, 1);
+    lcd.print(F("  "));
+    lcd.setCursor(14, 1);
+    lcd.print(pct);
     //lcd.print(Output);
-    lcd.print("%");
+    //lcd.print("%");
 
     lcd.setCursor(14, 0);
     if (preheat)
@@ -631,12 +802,56 @@ void Run()
       lcd.print(".");
     }
 
+    unsigned long currentMillis = millis();
+
+    // calculate and display time left
+    unsigned long elapsedMillis = currentMillis - previousMillis;
+    if (elapsedMillis < 0) {
+      elapsedMillis = 0;
+    }
+    if (cookTimeRemaining > elapsedMillis) {
+      cookTimeRemaining -= elapsedMillis;
+    } else {
+      cookTimeRemaining = 0;
+    }
+    previousMillis = currentMillis;
+    lcd.setCursor(6, 1);
+    int hours = cookTimeRemaining / 3600000;
+    int minutes = (cookTimeRemaining % 3600000) / 60000;
+    int seconds = (cookTimeRemaining % 60000) / 1000;
+    if (hours > 99) {
+      lcd.print(" ");
+    } else if (hours > 9) {
+      lcd.print(" ");
+    }
+    lcd.print(hours);
+    lcd.print(":");
+    if (minutes < 10) lcd.print("0");
+    lcd.print(minutes);
+    // If less than 10 hours, print seconds too
+    if (hours < 10) {
+      lcd.print(":");
+      if (seconds < 10) lcd.print("0");
+      lcd.print(seconds);
+    }
+
     // periodically log to serial port in csv format
-    if (millis() - lastLogTime > logInterval)
+    if (currentMillis - lastLogTime > logInterval)
     {
       Serial.print(Input);
       Serial.print(",");
-      Serial.println(Output);
+      Serial.print(Output);
+      Serial.print(",");
+      Serial.print(hours);
+      Serial.print(",");
+      Serial.print(minutes);
+      Serial.print(",");
+      Serial.print(seconds);
+      Serial.print(",");
+      Serial.print(previousMillis);
+      Serial.print(",");
+      Serial.println(cookTimeRemaining);
+      lastLogTime = currentMillis;
     }
 
     delay(100);
@@ -777,9 +992,13 @@ uint8_t ReadButtons()
 // ************************************************
 void SaveParameters()
 {
-  if (Setpoint != EEPROM_readDouble(SpAddress))
+  if (Setpoint1 != EEPROM_readDouble(Sp1Address))
   {
-    EEPROM_writeDouble(SpAddress, Setpoint);
+    EEPROM_writeDouble(Sp1Address, Setpoint1);
+  }
+  if (Setpoint2 != EEPROM_readDouble(Sp2Address))
+  {
+    EEPROM_writeDouble(Sp2Address, Setpoint2);
   }
   if (Kp != EEPROM_readDouble(KpAddress))
   {
@@ -793,6 +1012,10 @@ void SaveParameters()
   {
     EEPROM_writeDouble(KdAddress, Kd);
   }
+  if (CookTime != EEPROM_readDouble(CookTimeAddress))
+  {
+    EEPROM_writeDouble(CookTimeAddress, CookTime);
+  }
 }
 
 // ************************************************
@@ -801,15 +1024,21 @@ void SaveParameters()
 void LoadParameters()
 {
   // Load from EEPROM
-  Setpoint = EEPROM_readDouble(SpAddress);
+  Setpoint1 = EEPROM_readDouble(Sp1Address);
+  Setpoint2 = EEPROM_readDouble(Sp2Address);
   Kp = EEPROM_readDouble(KpAddress);
   Ki = EEPROM_readDouble(KiAddress);
   Kd = EEPROM_readDouble(KdAddress);
+  CookTime = EEPROM_readDouble(CookTimeAddress);
 
   // Use defaults if EEPROM values are invalid
-  if (isnan(Setpoint))
+  if (isnan(Setpoint1))
   {
-    Setpoint = 60;
+    Setpoint1 = 60;
+  }
+  if (isnan(Setpoint2))
+  {
+    Setpoint2 = 60;
   }
   if (isnan(Kp))
   {
@@ -822,6 +1051,10 @@ void LoadParameters()
   if (isnan(Kd))
   {
     Kd = 0.1;
+  }
+  if (isnan(CookTime))
+  {
+    CookTime = 7200000;
   }
 }
 
