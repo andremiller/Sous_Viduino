@@ -5,6 +5,11 @@ Sous-vide powered by Arduino - The SousViduino!
 This project was designed as an alternative to the [Adafruit Sous-Vide controller](http://learn.adafruit.com/sous-vide-powered-by-arduino-the-sous-viduino) by Bill Earl, but with the following changes:
 
 * Instead of the Adafruit RGB LCD Shield, it uses the cheaper DFRobot Keypad Shield
+* Dual temperature settings. You can use this to keep food warm after cooking.
+* Timer function. You set the cooking duration and after the set duration it switches to the secondary tempearture to keep the food warm. (Or set the second temperature to 0 to turn the machine off after the timer finishes)
+
+And some other minor changes:
+
 * Startup state is RUN instead of OFF, to recover from power outages. Turn it off with a physical switch when not in use!
 * The SELECT button toggles between various increments when changing setpoint and PID values
 * The UP button triggers autotune
